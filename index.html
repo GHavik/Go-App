@@ -174,26 +174,9 @@
   .loading-txt { color: #5a4020; font-size: 0.78rem; letter-spacing: 0.1em; }
 
   /* API key warning */
-  #api-warning {
-    background: rgba(200,100,50,0.1);
-    border: 1px solid rgba(200,100,50,0.4);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 14px;
-    font-size: 0.78rem;
-    color: #c07050;
-    line-height: 1.6;
-    display: none;
-    max-width: 420px;
-    width: 100%;
-  }
-  #api-warning.show { display: block; }
-  #api-warning code {
-    background: rgba(255,255,255,0.08);
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 0.85em;
+  #api-input:focus {
+    border-color: rgba(200,146,58,0.6);
+    box-shadow: 0 0 0 2px rgba(200,146,58,0.1);
   }
 
   /* Rank ladder */
@@ -222,8 +205,55 @@
 <h1>囲碁道場</h1>
 <div class="subtitle">GO PUZZLE DOJO · AI-GENERATED</div>
 
-<div id="api-warning" class="show">
-  ⚠️ No API key found. Open this file in a text editor and set <code>API_KEY</code> near the top of the &lt;script&gt; section.
+<!-- API Key Setup Screen -->
+<div id="api-screen" style="display:none; width:100%; max-width:420px; margin-bottom:16px;">
+  <div style="
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    padding: 28px 24px;
+    text-align: center;
+  ">
+    <div style="font-size:1.6rem; margin-bottom:6px;">🔑</div>
+    <div style="font-size:1rem; color:var(--gold); margin-bottom:8px; font-weight:normal;">Enter your API Key</div>
+    <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:20px; line-height:1.6;">
+      Get yours free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--gold); text-decoration:none;">console.anthropic.com</a><br>
+      It's stored only on your device.
+    </div>
+    <input id="api-input" type="password"
+      placeholder="sk-ant-..."
+      style="
+        width: 100%;
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(200,146,58,0.3);
+        border-radius: 7px;
+        color: var(--text);
+        font-size: 0.85rem;
+        font-family: monospace;
+        outline: none;
+        margin-bottom: 10px;
+      "
+    />
+    <div id="api-error" style="font-size:0.72rem; color:var(--red); margin-bottom:10px; display:none;"></div>
+    <button id="btn-save-key" style="
+      width: 100%;
+      padding: 10px;
+      background: var(--gold-pale);
+      border: 1px solid rgba(200,146,58,0.4);
+      border-radius: 7px;
+      color: var(--gold);
+      font-size: 0.82rem;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 0.07em;
+    ">Start Practicing →</button>
+  </div>
+</div>
+
+<!-- Small key indicator when playing -->
+<div id="api-badge" style="display:none; margin-bottom:12px; text-align:right; width:100%; max-width:420px;">
+  <span style="font-size:0.6rem; color:#3a2510; cursor:pointer;" id="change-key-btn">🔑 change key</span>
 </div>
 
 <div class="stats">
@@ -284,11 +314,8 @@
 <div class="footer-note">3 correct in a row → rank up · Hints reset your streak</div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════════════════
-//  ▼▼▼  PASTE YOUR ANTHROPIC API KEY HERE  ▼▼▼
-// ═══════════════════════════════════════════════════════════════════════════
-const API_KEY = "";
-// ═══════════════════════════════════════════════════════════════════════════
+// API key is entered in the app UI and stored in localStorage
+let API_KEY = localStorage.getItem("go_dojo_api_key") || "";
 
 const RANKS = ["30k","25k","20k","15k","10k","7k","5k","3k","1k","1d","2d","3d"];
 const THEMES = [
@@ -653,9 +680,59 @@ document.getElementById("btn-next").addEventListener("click", () => {
   loadPuzzle();
 });
 
+// ── API key screen ───────────────────────────────────────────────────────
+function showApiScreen() {
+  document.getElementById("api-screen").style.display = "block";
+  document.getElementById("api-badge").style.display = "none";
+  document.querySelector(".stats").style.display = "none";
+  document.getElementById("rankup-banner").style.display = "none";
+  document.querySelector(".card").style.display = "none";
+  document.querySelector(".rank-section").style.display = "none";
+  document.querySelector(".footer-note").style.display = "none";
+}
+
+function hideApiScreen() {
+  document.getElementById("api-screen").style.display = "none";
+  document.getElementById("api-badge").style.display = "block";
+  document.querySelector(".stats").style.display = "flex";
+  document.querySelector(".card").style.display = "block";
+  document.querySelector(".rank-section").style.display = "block";
+  document.querySelector(".footer-note").style.display = "block";
+}
+
+document.getElementById("btn-save-key").addEventListener("click", () => {
+  const val = document.getElementById("api-input").value.trim();
+  if (!val.startsWith("sk-ant-")) {
+    const err = document.getElementById("api-error");
+    err.textContent = "That doesn't look like a valid Anthropic key (should start with sk-ant-)";
+    err.style.display = "block";
+    return;
+  }
+  API_KEY = val;
+  localStorage.setItem("go_dojo_api_key", val);
+  hideApiScreen();
+  updateUI();
+  loadPuzzle();
+});
+
+document.getElementById("api-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") document.getElementById("btn-save-key").click();
+});
+
+document.getElementById("change-key-btn").addEventListener("click", () => {
+  document.getElementById("api-input").value = "";
+  document.getElementById("api-error").style.display = "none";
+  showApiScreen();
+});
+
 // ── Boot ─────────────────────────────────────────────────────────────────
-updateUI();
-loadPuzzle();
+if (!API_KEY) {
+  showApiScreen();
+} else {
+  hideApiScreen();
+  updateUI();
+  loadPuzzle();
+}
 </script>
 </body>
 </html>
